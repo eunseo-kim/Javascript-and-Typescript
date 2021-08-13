@@ -119,10 +119,12 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   return newRequire;
 })({"app.js":[function(require,module,exports) {
 var ajax = new XMLHttpRequest();
-var content = document.createElement("div");
 var NEWS_URL = "https://api.hnpwa.com/v0/news/1.json";
 var CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
-var container = document.getElementById("root"); // 리팩토링-중복되는 코드를 함수로 묶기
+var container = document.getElementById("root");
+var store = {
+  currentPage: 1
+}; // 리팩토링-중복되는 코드를 함수로 묶기
 
 function getData(url) {
   ajax.open("GET", url, false); // 동기적으로 가져옴
@@ -138,19 +140,22 @@ function newsFeed() {
   var newsFeed = getData(NEWS_URL);
   newsList.push("<ul>");
 
-  for (var i = 0; i < newsFeed.length; i++) {
-    newsList.push("\n     <li>\n      <a href=\"#".concat(newsFeed[i].id, "\">\n        ").concat(newsFeed[i].title, " (").concat(newsFeed[i].comments_count, ")\n      </a>\n     </li>\n    "));
+  for (var i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
+    newsList.push("\n     <li>\n      <a href=\"#/show/".concat(newsFeed[i].id, "\">\n        ").concat(newsFeed[i].title, " (").concat(newsFeed[i].comments_count, ")\n      </a>\n     </li>\n    "));
   }
 
-  newsList.push("</ul>");
+  newsList.push("</ul>"); // 숙제: 다음 페이지 버그 수정해보기(없는 페이지로 이동하는 버그)
+
+  var lastPage = newsFeed.length / 10;
+  newsList.push("\n    <div>\n      <a href=\"#/page/".concat(store.currentPage > 1 ? store.currentPage - 1 : 1, "\">\uC774\uC804 \uD398\uC774\uC9C0</a>\n      <a href=\"#/page/").concat(store.currentPage < lastPage ? store.currentPage + 1 : lastPage, "\">\uB2E4\uC74C \uD398\uC774\uC9C0</a>\n    </div>\n  "));
   container.innerHTML = newsList.join("");
 } // 글 내용을 띄워주는 함수
 
 
 function newsDetail() {
-  var id = location.hash.substring(1);
+  var id = location.hash.substring(7);
   var newsContents = getData(CONTENT_URL.replace("@id", id));
-  container.innerHTML = "\n    <h1>".concat(newsContents.title, "</h1>\n    \n    <div>\n      <a href=\"#\">\uBAA9\uB85D\uC73C\uB85C</a>\n    </div>\n  ");
+  container.innerHTML = "\n    <h1>".concat(newsContents.title, "</h1>\n    \n    <div>\n      <a href=\"#/page/").concat(store.currentPage, "\">\uBAA9\uB85D\uC73C\uB85C</a>\n    </div>\n  ");
 } // 라우터 만들기
 
 
@@ -158,6 +163,9 @@ function router() {
   var routePath = location.hash; // 참고로, location.hash에 #만 들어있으면 ''를 반환한다.
 
   if (routePath === "") {
+    newsFeed();
+  } else if (routePath.indexOf("#/page/") >= 0) {
+    store.currentPage = Number(routePath.substr(7));
     newsFeed();
   } else {
     newsDetail();
