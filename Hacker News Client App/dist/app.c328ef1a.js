@@ -130,28 +130,42 @@ function getData(url) {
   ajax.send(); // JSON.parse-json 응답값을 객체로 바꾸기
 
   return JSON.parse(ajax.response);
-}
+} // 글 목록을 불러오는 함수 만들기
 
-var newsFeed = getData(NEWS_URL);
-var ul = document.createElement("ul");
-window.addEventListener("hashchange", function () {
+
+function newsFeed() {
+  var newsList = [];
+  var newsFeed = getData(NEWS_URL);
+  newsList.push("<ul>");
+
+  for (var i = 0; i < newsFeed.length; i++) {
+    newsList.push("\n     <li>\n      <a href=\"#".concat(newsFeed[i].id, "\">\n        ").concat(newsFeed[i].title, " (").concat(newsFeed[i].comments_count, ")\n      </a>\n     </li>\n    "));
+  }
+
+  newsList.push("</ul>");
+  container.innerHTML = newsList.join("");
+} // 글 내용을 띄워주는 함수
+
+
+function newsDetail() {
   var id = location.hash.substring(1);
   var newsContents = getData(CONTENT_URL.replace("@id", id));
-  var title = document.createElement("h1");
-  title.innerHTML = newsContents.title;
-  content.appendChild(title);
-  console.log(newsContents);
-});
+  container.innerHTML = "\n    <h1>".concat(newsContents.title, "</h1>\n    \n    <div>\n      <a href=\"#\">\uBAA9\uB85D\uC73C\uB85C</a>\n    </div>\n  ");
+} // 라우터 만들기
 
-for (var i = 0; i < newsFeed.length; i++) {
-  var div = document.createElement("div");
-  div.innerHTML = "\n   <li>\n    <a href=\"#".concat(newsFeed[i].id, "\">\n      ").concat(newsFeed[i].title, " (").concat(newsFeed[i].comments_count, ")\n    </a>\n   </li>\n  "); // ul.appendChild(div.children[0]);
 
-  ul.appendChild(div.firstElementChild);
+function router() {
+  var routePath = location.hash; // 참고로, location.hash에 #만 들어있으면 ''를 반환한다.
+
+  if (routePath === "") {
+    newsFeed();
+  } else {
+    newsDetail();
+  }
 }
 
-container.appendChild(ul);
-container.appendChild(content);
+window.addEventListener("hashchange", router);
+router();
 },{}],"../../../../AppData/Roaming/npm/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
