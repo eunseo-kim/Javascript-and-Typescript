@@ -4,20 +4,23 @@ const NEWS_URL = "https://api.hnpwa.com/v0/news/1.json";
 const CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
 const container = document.getElementById("root");
 
-ajax.open("GET", NEWS_URL, false); // 동기적으로 가져옴
-ajax.send();
+// 리팩토링-중복되는 코드를 함수로 묶기
+function getData(url) {
+  ajax.open("GET", url, false); // 동기적으로 가져옴
+  ajax.send();
 
-// json 응답값을 객체로 바꾸기
-const newsFeed = JSON.parse(ajax.response);
+  // JSON.parse-json 응답값을 객체로 바꾸기
+  return JSON.parse(ajax.response);
+}
+
+const newsFeed = getData(NEWS_URL);
 const ul = document.createElement("ul");
 
 window.addEventListener("hashchange", function () {
   const id = location.hash.substring(1);
 
-  ajax.open("GET", CONTENT_URL.replace("@id", id), false);
-  ajax.send();
+  const newsContents = getData(CONTENT_URL.replace("@id", id));
 
-  const newsContents = JSON.parse(ajax.response);
   const title = document.createElement("h1");
   title.innerHTML = newsContents.title;
 
@@ -26,14 +29,18 @@ window.addEventListener("hashchange", function () {
 });
 
 for (let i = 0; i < newsFeed.length; i++) {
-  const li = document.createElement("li");
-  const a = document.createElement("a");
+  const div = document.createElement("div");
 
-  a.href = `#${newsFeed[i].id}`;
-  a.innerHTML = `${newsFeed[i].title} (${newsFeed[i].comments_count})`;
+  div.innerHTML = `
+   <li>
+    <a href="#${newsFeed[i].id}">
+      ${newsFeed[i].title} (${newsFeed[i].comments_count})
+    </a>
+   </li>
+  `;
 
-  li.appendChild(a);
-  ul.appendChild(li);
+  // ul.appendChild(div.children[0]);
+  ul.appendChild(div.firstElementChild);
 }
 
 container.appendChild(ul);
