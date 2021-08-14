@@ -4,6 +4,7 @@ const CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
 const container = document.getElementById("root");
 const store = {
   currentPage: 1,
+  feeds: [],
 };
 
 // 리팩토링-중복되는 코드를 함수로 묶기
@@ -15,13 +16,25 @@ function getData(url) {
   return JSON.parse(ajax.response);
 }
 
+// 읽은 목록
+function makeFeeds(feeds) {
+  for (let i = 0; i < feeds.length; i++) {
+    feeds[i].read = false;
+  }
+
+  return feeds;
+}
+
 // 글 목록을 불러오는 함수 만들기
 function newsFeed() {
   const newsList = [];
-  const newsFeed = getData(NEWS_URL);
+  let newsFeed = store.feeds;
+
+  if (newsFeed.length === 0) {
+    newsFeed = store.feeds = makeFeeds(getData(NEWS_URL));
+  }
 
   // 템플릿만 보면 UI가 어떤 구조인지 한눈에 명확하게 볼 수 있음!
-
   let template = `
     <div class="bg-gray-600 min-h-screen">
       <div class="bg-white text-xl">
@@ -51,7 +64,7 @@ function newsFeed() {
 
   for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
     newsList.push(`
-      <div class="p-6 ${newsFeed[i].read ? "bg-red-500" : "bg-white"} mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
+      <div class="p-6 ${newsFeed[i].read ? "bg-red-100" : "bg-white"} mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
         <div class="flex">
           <div class="flex-auto">
             <a href="#/show/${newsFeed[i].id}">${newsFeed[i].title}</a>  
@@ -115,6 +128,13 @@ function newsDetail() {
       </div>
     </div>
   `;
+
+  for (let i = 0; i < store.feeds.length; i++) {
+    if (store.feeds[i].id === Number(id)) {
+      store.feeds[i].read = true;
+      break;
+    }
+  }
 
   // makeComment가 호출된 횟수(called) 만큼 padding * called를 왼쪽에 준다. (대댓글의 깊이 구현)
   function makeComment(comments, called = 0) {
