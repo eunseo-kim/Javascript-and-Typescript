@@ -28,7 +28,9 @@ function newsFeed() {
         <div class="mx-auto px-4">
           <div class="flex justify-between items-center py-6">
             <div class="flex justify-start">
-              <h1 class="font-extrabold">Hacker News</h1>
+              <a href="#/page/1">
+                <h1 class="font-extrabold">Hacker News</h1>
+              </a>
             </div>
             <div class="items-center justify-end">
               <a href="#/page/{{__prev_page__}}" class="text-gray-500">
@@ -89,7 +91,9 @@ function newsDetail() {
         <div class="mx-auto px-4">
           <div class="flex justify-between items-center py-6">
             <div class="flex justify-start">
-              <h1 class="font-extrabold">Hacker News</h1>
+              <a href="#/page/1">
+                <h1 class="font-extrabold">Hacker News</h1>
+              </a>
             </div>
             <div class="items-center justify-end">
               <a href="#/page/${store.currentPage}" class="text-gray-500">
@@ -101,7 +105,7 @@ function newsDetail() {
       </div>
 
       <div class="h-full border rounded-xl bg-white m-6 p-4 ">
-        <h2>${newsContent.title}</h2>
+        <h1 class="text-4xl font-extrabold" >${newsContent.title}</h1>
         <div class="text-gray-400 h-20">
           ${newsContent.content}
         </div>
@@ -112,7 +116,30 @@ function newsDetail() {
     </div>
   `;
 
-  container.innerHTML = template;
+  // makeComment가 호출된 횟수(called) 만큼 padding * called를 왼쪽에 준다. (대댓글의 깊이 구현)
+  function makeComment(comments, called = 0) {
+    const commentString = [];
+
+    for (let i = 0; i < comments.length; i++) {
+      commentString.push(`
+        <div style="padding-left: ${called * 40}px;" class="mt-4">
+          <div class="text-gray-400">
+            <i class="fa fa-sort-up mr-2"></i>
+            <strong>${comments[i].user}</strong> ${comments[i].time_ago}
+          </div>
+          <p class="text-gray-700">${comments[i].content}</p>
+        </div>      
+      `);
+
+      if (comments[i].comments.length > 0) {
+        commentString.push(makeComment(comments[i].comments, called + 1));
+      }
+    }
+
+    return commentString.join("");
+  }
+
+  container.innerHTML = template.replace("{{__comments__}}", makeComment(newsContent.comments));
 }
 
 // 라우터 만들기
