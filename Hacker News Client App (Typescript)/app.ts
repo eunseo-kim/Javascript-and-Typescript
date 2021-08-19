@@ -3,15 +3,29 @@ type Store = {
   feeds: NewsFeed[];
 };
 
-type NewsFeed = {
+type News = {
   id: number;
-  comments_count: number;
-  title: string;
-  read?: boolean; // ?: 있을수도 없을수도 있다
-  url: string;
   time_ago: string;
-  points: string;
+  title: string;
+  url: string;
   user: string;
+  content: string;
+};
+
+type NewsFeed = News & {
+  comments_count: number;
+  points: string;
+  read?: boolean; // ?: 있을수도 없을수도 있다
+};
+
+type NewsDetail = News & {
+  comments_count: number;
+  comments: [];
+};
+
+type NewsComment = News & {
+  comments: [];
+  level: number;
 };
 
 const container: HTMLElement | null = document.getElementById("root");
@@ -23,17 +37,21 @@ const store: Store = {
   feeds: [],
 };
 
-// 리팩토링-중복되는 코드를 함수로 묶기
-function getData(url) {
+// getData의 반환값은 2가지 종류인데 어떻게 타입을 지정할까?
+// 타입 2가지 => newsFeed 타입 & 2. newsContent
+// sol 1) '|'으로 해결하기
+// => 만약 getData가 반환하는 타입의 종류가 더 많아지면? 그때로 다 '|'으로 처리하나?
+// 그런데 '|' 중 어떤 타입인지 하나하나 if-else로 타입 가드 코드를 작성하는 것은 좀...
+// sol 2) 제네릭
+// => 호출하는 쪽에서 유형을 명시해주면 그 유형을 받아서 사용하겠다~
+function getData<AjaxResponse>(url: string): AjaxResponse {
   ajax.open("GET", url, false); // 동기적으로 가져옴
   ajax.send();
 
-  // JSON.parse-json 응답값을 객체로 바꾸기
   return JSON.parse(ajax.response);
 }
 
-// 읽은 목록
-function makeFeeds(feeds) {
+function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
   for (let i = 0; i < feeds.length; i++) {
     feeds[i].read = false;
   }
@@ -41,24 +59,22 @@ function makeFeeds(feeds) {
   return feeds;
 }
 
-function updateView(html) {
-  if (html) {
-    html.innerHTML = html;
+function updateView(html: string): void {
+  if (container) {
+    container.innerHTML = html;
   } else {
     console.log("최상위 컨테이너가 없어 UI 진행 불가능!");
   }
 }
 
-// 글 목록을 불러오는 함수 만들기
-function newsFeed() {
+function newsFeed(): void {
   const newsList = [];
   let newsFeed: NewsFeed[] = store.feeds;
 
   if (newsFeed.length === 0) {
-    newsFeed = store.feeds = makeFeeds(getData(NEWS_URL));
+    newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
   }
 
-  // 템플릿만 보면 UI가 어떤 구조인지 한눈에 명확하게 볼 수 있음!
   let template = `
     <div class="bg-gray-600 min-h-screen">
       <div class="bg-white text-xl">
@@ -108,20 +124,18 @@ function newsFeed() {
     `);
   }
 
-  // 숙제: 다음 페이지 버그 수정해보기(없는 페이지로 이동하는 버그)
   const lastPage = newsFeed.length / 10;
 
   template = template.replace("{{__news_feed__}}", newsList.join(""));
-  template = template.replace("{{__prev_page__}}", store.currentPage > 1 ? store.currentPage - 1 : 1);
-  template = template.replace("{{__next_page__}}", store.currentPage < lastPage ? store.currentPage + 1 : lastPage);
+  template = template.replace("{{__prev_page__}}", String(store.currentPage > 1 ? store.currentPage - 1 : 1));
+  template = template.replace("{{__next_page__}}", String(store.currentPage < lastPage ? store.currentPage + 1 : lastPage));
 
   updateView(template);
 }
 
-// 글 내용을 띄워주는 함수
-function newsDetail() {
+function newsDetail(): void {
   const id = location.hash.substring(7);
-  const newsContent = getData(CONTENT_URL.replace("@id", id));
+  const newsContent = getData<NewsDetail>(CONTENT_URL.replace("@id", id));
   let template = `
     <div class="bg-gray-600 min-h-screen pb-8">
       <div class="bg-white text-xl">
@@ -160,36 +174,35 @@ function newsDetail() {
     }
   }
 
-  // makeComment가 호출된 횟수(called) 만큼 padding * called를 왼쪽에 준다. (대댓글의 깊이 구현)
-  function makeComment(comments, called = 0) {
-    const commentString = [];
-
-    for (let i = 0; i < comments.length; i++) {
-      commentString.push(`
-        <div style="padding-left: ${called * 40}px;" class="mt-4">
-          <div class="text-gray-400">
-            <i class="fa fa-sort-up mr-2"></i>
-            <strong>${comments[i].user}</strong> ${comments[i].time_ago}
-          </div>
-          <p class="text-gray-700">${comments[i].content}</p>
-        </div>      
-      `);
-
-      if (comments[i].comments.length > 0) {
-        commentString.push(makeComment(comments[i].comments, called + 1));
-      }
-    }
-
-    return commentString.join("");
-  }
-
   updateView(template.replace("{{__comments__}}", makeComment(newsContent.comments)));
 }
 
-// 라우터 만들기
-function router() {
+function makeComment(comments: NewsComment[]): string {
+  const commentString = [];
+
+  for (let i = 0; i < comments.length; i++) {
+    const comment: NewsComment = comments[i];
+
+    commentString.push(`
+      <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
+        <div class="text-gray-400">
+          <i class="fa fa-sort-up mr-2"></i>
+          <strong>${comment.user}</strong> ${comment.time_ago}
+        </div>
+        <p class="text-gray-700">${comment.content}</p>
+      </div>      
+    `);
+
+    if (comment.comments.length > 0) {
+      commentString.push(makeComment(comment.comments));
+    }
+  }
+
+  return commentString.join("");
+}
+
+function router(): void {
   const routePath = location.hash;
-  // 참고로, location.hash에 #만 들어있으면 ''를 반환한다.
 
   if (routePath === "") {
     newsFeed();

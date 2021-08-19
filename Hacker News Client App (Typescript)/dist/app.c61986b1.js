@@ -127,16 +127,20 @@ var CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
 var store = {
   currentPage: 1,
   feeds: []
-}; // 리팩토링-중복되는 코드를 함수로 묶기
+}; // getData의 반환값은 2가지 종류인데 어떻게 타입을 지정할까?
+// 타입 2가지 => newsFeed 타입 & 2. newsContent
+// sol 1) '|'으로 해결하기
+// => 만약 getData가 반환하는 타입의 종류가 더 많아지면? 그때로 다 '|'으로 처리하나?
+// 그런데 '|' 중 어떤 타입인지 하나하나 if-else로 타입 가드 코드를 작성하는 것은 좀...
+// sol 2) 제네릭
+// => 호출하는 쪽에서 유형을 명시해주면 그 유형을 받아서 사용하겠다~
 
 function getData(url) {
   ajax.open("GET", url, false); // 동기적으로 가져옴
 
-  ajax.send(); // JSON.parse-json 응답값을 객체로 바꾸기
-
+  ajax.send();
   return JSON.parse(ajax.response);
-} // 읽은 목록
-
+}
 
 function makeFeeds(feeds) {
   for (var i = 0; i < feeds.length; i++) {
@@ -147,13 +151,12 @@ function makeFeeds(feeds) {
 }
 
 function updateView(html) {
-  if (html) {
-    html.innerHTML = html;
+  if (container) {
+    container.innerHTML = html;
   } else {
     console.log("최상위 컨테이너가 없어 UI 진행 불가능!");
   }
-} // 글 목록을 불러오는 함수 만들기
-
+}
 
 function newsFeed() {
   var newsList = [];
@@ -161,23 +164,20 @@ function newsFeed() {
 
   if (newsFeed.length === 0) {
     newsFeed = store.feeds = makeFeeds(getData(NEWS_URL));
-  } // 템플릿만 보면 UI가 어떤 구조인지 한눈에 명확하게 볼 수 있음!
-
+  }
 
   var template = "\n    <div class=\"bg-gray-600 min-h-screen\">\n      <div class=\"bg-white text-xl\">\n        <div class=\"mx-auto px-4\">\n          <div class=\"flex justify-between items-center py-6\">\n            <div class=\"flex justify-start\">\n              <a href=\"#/page/1\">\n                <h1 class=\"font-extrabold\">Hacker News</h1>\n              </a>\n            </div>\n            <div class=\"items-center justify-end\">\n              <a href=\"#/page/{{__prev_page__}}\" class=\"text-gray-500\">\n                Previous\n              </a>\n              <a href=\"#/page/{{__next_page__}}\" class=\"text-gray-500 ml-4\">\n                Next\n              </a>\n            </div>\n          </div> \n        </div>\n      </div>\n      <div class=\"p-4 text-2xl text-gray-700\">\n        {{__news_feed__}}        \n      </div>\n    </div>\n  ";
 
   for (var i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
     newsList.push("\n      <div class=\"p-6 " + (newsFeed[i].read ? "bg-red-100" : "bg-white") + " mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100\">\n        <div class=\"flex\">\n          <div class=\"flex-auto\">\n            <a href=\"#/show/" + newsFeed[i].id + "\">" + newsFeed[i].title + "</a>  \n          </div>\n          <div class=\"text-center text-sm\">\n            <div class=\"w-10 text-white bg-green-300 rounded-lg px-0 py-2\">" + newsFeed[i].comments_count + "</div>\n          </div>\n        </div>\n        <div class=\"flex mt-3\">\n          <div class=\"grid grid-cols-3 text-sm text-gray-500\">\n            <div><i class=\"fas fa-user mr-1\"></i>" + newsFeed[i].user + "</div>\n            <div><i class=\"fas fa-heart mr-1\"></i>" + newsFeed[i].points + "</div>\n            <div><i class=\"far fa-clock mr-1\"></i>" + newsFeed[i].time_ago + "</div>\n          </div>  \n        </div>\n      </div>    \n    ");
-  } // 숙제: 다음 페이지 버그 수정해보기(없는 페이지로 이동하는 버그)
-
+  }
 
   var lastPage = newsFeed.length / 10;
   template = template.replace("{{__news_feed__}}", newsList.join(""));
-  template = template.replace("{{__prev_page__}}", store.currentPage > 1 ? store.currentPage - 1 : 1);
-  template = template.replace("{{__next_page__}}", store.currentPage < lastPage ? store.currentPage + 1 : lastPage);
+  template = template.replace("{{__prev_page__}}", String(store.currentPage > 1 ? store.currentPage - 1 : 1));
+  template = template.replace("{{__next_page__}}", String(store.currentPage < lastPage ? store.currentPage + 1 : lastPage));
   updateView(template);
-} // 글 내용을 띄워주는 함수
-
+}
 
 function newsDetail() {
   var id = location.hash.substring(7);
@@ -189,33 +189,28 @@ function newsDetail() {
       store.feeds[i].read = true;
       break;
     }
-  } // makeComment가 호출된 횟수(called) 만큼 padding * called를 왼쪽에 준다. (대댓글의 깊이 구현)
-
-
-  function makeComment(comments, called) {
-    if (called === void 0) {
-      called = 0;
-    }
-
-    var commentString = [];
-
-    for (var i = 0; i < comments.length; i++) {
-      commentString.push("\n        <div style=\"padding-left: " + called * 40 + "px;\" class=\"mt-4\">\n          <div class=\"text-gray-400\">\n            <i class=\"fa fa-sort-up mr-2\"></i>\n            <strong>" + comments[i].user + "</strong> " + comments[i].time_ago + "\n          </div>\n          <p class=\"text-gray-700\">" + comments[i].content + "</p>\n        </div>      \n      ");
-
-      if (comments[i].comments.length > 0) {
-        commentString.push(makeComment(comments[i].comments, called + 1));
-      }
-    }
-
-    return commentString.join("");
   }
 
   updateView(template.replace("{{__comments__}}", makeComment(newsContent.comments)));
-} // 라우터 만들기
+}
 
+function makeComment(comments) {
+  var commentString = [];
+
+  for (var i = 0; i < comments.length; i++) {
+    var comment = comments[i];
+    commentString.push("\n      <div style=\"padding-left: " + comment.level * 40 + "px;\" class=\"mt-4\">\n        <div class=\"text-gray-400\">\n          <i class=\"fa fa-sort-up mr-2\"></i>\n          <strong>" + comment.user + "</strong> " + comment.time_ago + "\n        </div>\n        <p class=\"text-gray-700\">" + comment.content + "</p>\n      </div>      \n    ");
+
+    if (comment.comments.length > 0) {
+      commentString.push(makeComment(comment.comments));
+    }
+  }
+
+  return commentString.join("");
+}
 
 function router() {
-  var routePath = location.hash; // 참고로, location.hash에 #만 들어있으면 ''를 반환한다.
+  var routePath = location.hash;
 
   if (routePath === "") {
     newsFeed();
