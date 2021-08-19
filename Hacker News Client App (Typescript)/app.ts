@@ -1,32 +1,32 @@
-type Store = {
+interface Store {
   currentPage: number;
   feeds: NewsFeed[];
-};
+}
 
-type News = {
-  id: number;
-  time_ago: string;
-  title: string;
-  url: string;
-  user: string;
-  content: string;
-};
+interface News {
+  readonly id: number;
+  readonly time_ago: string;
+  readonly title: string;
+  readonly url: string;
+  readonly user: string;
+  readonly content: string;
+}
 
-type NewsFeed = News & {
-  comments_count: number;
-  points: string;
+interface NewsFeed extends News {
+  readonly comments_count: number;
+  readonly points: string;
   read?: boolean; // ?: 있을수도 없을수도 있다
-};
+}
 
-type NewsDetail = News & {
-  comments_count: number;
-  comments: [];
-};
+interface NewsDetail extends News {
+  readonly comments_count: number;
+  readonly comments: [];
+}
 
-type NewsComment = News & {
-  comments: [];
-  level: number;
-};
+interface NewsComment extends News {
+  readonly comments: [];
+  readonly level: number;
+}
 
 const container: HTMLElement | null = document.getElementById("root");
 const ajax: XMLHttpRequest = new XMLHttpRequest();
