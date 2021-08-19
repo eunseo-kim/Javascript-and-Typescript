@@ -120,34 +120,6 @@ parcelRequire = (function (modules, cache, entry, globalName) {
 })({"app.ts":[function(require,module,exports) {
 "use strict";
 
-var __extends = this && this.__extends || function () {
-  var _extendStatics = function extendStatics(d, b) {
-    _extendStatics = Object.setPrototypeOf || {
-      __proto__: []
-    } instanceof Array && function (d, b) {
-      d.__proto__ = b;
-    } || function (d, b) {
-      for (var p in b) {
-        if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p];
-      }
-    };
-
-    return _extendStatics(d, b);
-  };
-
-  return function (d, b) {
-    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
-
-    _extendStatics(d, b);
-
-    function __() {
-      this.constructor = d;
-    }
-
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-  };
-}();
-
 var container = document.getElementById("root");
 var ajax = new XMLHttpRequest();
 var NEWS_URL = "https://api.hnpwa.com/v0/news/1.json";
@@ -155,23 +127,32 @@ var CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
 var store = {
   currentPage: 1,
   feeds: []
-}; // getData를 공통요소로 지정하고 상속하기
-// API 클래스 => (getRequest 상속) NewsFeedApi, NewsDetailApi
+}; // *믹스인을 이용한 상속*
+// - extends를 사용했을 때보다 상속의 유연성 UP! (A가 B를 상속받았다가 C를 상속받도록 수정 가능)
+// - extends는 다중 상속을 지원하지 않음 (mixin은 가능하게 만든다면 가능해짐)
+// applyApiMixins(class1, class2); => class1에 class2의 코드를 상속시켜줌
+
+function applyApiMixins(targetClass, baseClasses) {
+  baseClasses.forEach(function (baseClass) {
+    Object.getOwnPropertyNames(baseClass.prototype).forEach(function (name) {
+      var descriptor = Object.getOwnPropertyDescriptor(baseClass.prototype, name);
+
+      if (descriptor) {
+        Object.defineProperty(targetClass.prototype, name, descriptor);
+      }
+    });
+  });
+}
 
 var Api =
 /** @class */
 function () {
-  function Api(url) {
-    this.url = url;
-    this.ajax = new XMLHttpRequest();
-  } // 바깥에서 호출할 필요가 없는 getRequest를 protected로 지정
-  // getRequest는 getData 내부에서만 실행되기 때문!
+  function Api() {}
 
-
-  Api.prototype.getRequest = function () {
-    this.ajax.open("GET", this.url, false);
-    this.ajax.send();
-    return JSON.parse(this.ajax.response);
+  Api.prototype.getRequest = function (url) {
+    ajax.open("GET", url, false);
+    ajax.send();
+    return JSON.parse(ajax.response);
   };
 
   return Api;
@@ -179,35 +160,30 @@ function () {
 
 var NewsFeedApi =
 /** @class */
-function (_super) {
-  __extends(NewsFeedApi, _super);
-
-  function NewsFeedApi() {
-    return _super !== null && _super.apply(this, arguments) || this;
-  }
+function () {
+  function NewsFeedApi() {}
 
   NewsFeedApi.prototype.getData = function () {
-    return this.getRequest();
+    return this.getRequest(NEWS_URL);
   };
 
   return NewsFeedApi;
-}(Api);
+}();
 
 var NewsDetailApi =
 /** @class */
-function (_super) {
-  __extends(NewsDetailApi, _super);
+function () {
+  function NewsDetailApi() {}
 
-  function NewsDetailApi() {
-    return _super !== null && _super.apply(this, arguments) || this;
-  }
-
-  NewsDetailApi.prototype.getData = function () {
-    return this.getRequest();
+  NewsDetailApi.prototype.getData = function (id) {
+    return this.getRequest(CONTENT_URL.replace("@id", id));
   };
 
   return NewsDetailApi;
-}(Api);
+}();
+
+applyApiMixins(NewsFeedApi, [Api]);
+applyApiMixins(NewsDetailApi, [Api]);
 
 function makeFeeds(feeds) {
   for (var i = 0; i < feeds.length; i++) {
@@ -226,7 +202,7 @@ function updateView(html) {
 }
 
 function newsFeed() {
-  var api = new NewsFeedApi(NEWS_URL);
+  var api = new NewsFeedApi();
   var newsList = [];
   var newsFeed = store.feeds;
 
@@ -249,8 +225,8 @@ function newsFeed() {
 
 function newsDetail() {
   var id = location.hash.substring(7);
-  var api = new NewsDetailApi(CONTENT_URL.replace("@id", id));
-  var newsContent = api.getData();
+  var api = new NewsDetailApi();
+  var newsContent = api.getData(id);
   var template = "\n    <div class=\"bg-gray-600 min-h-screen pb-8\">\n      <div class=\"bg-white text-xl\">\n        <div class=\"mx-auto px-4\">\n          <div class=\"flex justify-between items-center py-6\">\n            <div class=\"flex justify-start\">\n              <a href=\"#/page/1\">\n                <h1 class=\"font-extrabold\">Hacker News</h1>\n              </a>\n            </div>\n            <div class=\"items-center justify-end\">\n              <a href=\"#/page/" + store.currentPage + "\" class=\"text-gray-500\">\n                <i class=\"fa fa-times\"></i>\n              </a>\n            </div>\n          </div>\n        </div>\n      </div>\n\n      <div class=\"h-full border rounded-xl bg-white m-6 p-4 \">\n        <h1 class=\"text-4xl font-extrabold\" >" + newsContent.title + "</h1>\n        <div class=\"text-gray-400 h-20\">\n          " + newsContent.content + "\n        </div>\n\n        {{__comments__}}\n\n      </div>\n    </div>\n  ";
 
   for (var i = 0; i < store.feeds.length; i++) {
