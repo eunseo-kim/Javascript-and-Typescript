@@ -37,18 +37,36 @@ const store: Store = {
   feeds: [],
 };
 
-// getData의 반환값은 2가지 종류인데 어떻게 타입을 지정할까?
-// 타입 2가지 => newsFeed 타입 & 2. newsContent
-// sol 1) '|'으로 해결하기
-// => 만약 getData가 반환하는 타입의 종류가 더 많아지면? 그때로 다 '|'으로 처리하나?
-// 그런데 '|' 중 어떤 타입인지 하나하나 if-else로 타입 가드 코드를 작성하는 것은 좀...
-// sol 2) 제네릭
-// => 호출하는 쪽에서 유형을 명시해주면 그 유형을 받아서 사용하겠다~
-function getData<AjaxResponse>(url: string): AjaxResponse {
-  ajax.open("GET", url, false); // 동기적으로 가져옴
-  ajax.send();
+// getData를 공통요소로 지정하고 상속하기
+// API 클래스 => (getRequest 상속) NewsFeedApi, NewsDetailApi
+class Api {
+  url: string;
+  ajax: XMLHttpRequest;
+  constructor(url: string) {
+    this.url = url;
+    this.ajax = new XMLHttpRequest();
+  }
 
-  return JSON.parse(ajax.response);
+  // 바깥에서 호출할 필요가 없는 getRequest를 protected로 지정
+  // getRequest는 getData 내부에서만 실행되기 때문!
+  protected getRequest<AjaxResponse>(): AjaxResponse {
+    this.ajax.open("GET", this.url, false);
+    this.ajax.send();
+
+    return JSON.parse(this.ajax.response);
+  }
+}
+
+class NewsFeedApi extends Api {
+  getData(): NewsFeed[] {
+    return this.getRequest<NewsFeed[]>();
+  }
+}
+
+class NewsDetailApi extends Api {
+  getData(): NewsDetail {
+    return this.getRequest<NewsDetail>();
+  }
 }
 
 function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
@@ -68,11 +86,12 @@ function updateView(html: string): void {
 }
 
 function newsFeed(): void {
+  const api = new NewsFeedApi(NEWS_URL);
   const newsList = [];
   let newsFeed: NewsFeed[] = store.feeds;
 
   if (newsFeed.length === 0) {
-    newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
+    newsFeed = store.feeds = makeFeeds(api.getData());
   }
 
   let template = `
@@ -135,7 +154,8 @@ function newsFeed(): void {
 
 function newsDetail(): void {
   const id = location.hash.substring(7);
-  const newsContent = getData<NewsDetail>(CONTENT_URL.replace("@id", id));
+  const api = new NewsDetailApi(CONTENT_URL.replace("@id", id));
+  const newsContent = api.getData();
   let template = `
     <div class="bg-gray-600 min-h-screen pb-8">
       <div class="bg-white text-xl">
