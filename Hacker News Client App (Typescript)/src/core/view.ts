@@ -41,5 +41,5 @@ export default abstract class View {
     this.renderTemplate = this.renderTemplate.replace(`{{__${key}__}}`, value);
   }
 
-  abstract render(): void;
+  abstract render(...params: string[]): void;
 }

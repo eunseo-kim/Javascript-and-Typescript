@@ -23,6 +23,7 @@ export default class Router {
     const routePath = location.hash;
     if (routePath === "" && this.defaultRoute) {
       this.defaultRoute.page.render();
+      return;
     }
 
     for (const routeInfo of this.routeTable) {

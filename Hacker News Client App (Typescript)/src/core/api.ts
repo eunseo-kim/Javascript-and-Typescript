@@ -9,7 +9,7 @@ export class Api {
   }
 
   protected getRequest<AjaxResponse>(): AjaxResponse {
-    this.ajax.open("GET", this.url, false);
+    this.ajax.open("GET", this.url);
     this.ajax.send();
 
     return JSON.parse(this.ajax.response);
